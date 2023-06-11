@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <title>programma1_piuomeno.nim</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🐳</text></svg>">
+  <meta content="text/html; charset=utf-8" http-equiv="content-type">
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link rel='stylesheet' href='https://unpkg.com/normalize.css'>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/light.min.css">
+  <link rel='stylesheet' href='https://cdn.jsdelivr.net/gh/pietroppeter/nimib/assets/atom-one-light.css'>
+    <script src="https://cdn.jsdelivr.net/gh/pietroppeter/nimib@main/assets/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+
+  <style>
+.nb-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nb-small {
+  font-size: 0.8rem;
+}
+button.nb-small {
+  float: right;
+  padding: 2px;
+  padding-right: 5px;
+  padding-left: 5px;
+}
+section#source {
+  display:none
+}
+
+.nb-output {
+  line-height: 1.15;
+}
+</style>
+  
+</head>
+<body>
+<header>
+<div class="nb-box">
+  <span><a href=".">🏡</a></span>
+  <span><code>programma1_piuomeno.nim</code></span>
+  <span><a href="https://github.com/pietroppeter/programma101"><svg aria-hidden="true" width="1.2em" height="1.2em" style="vertical-align: middle;" preserveAspectRatio="xMidYMid meet" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59c.4.07.55-.17.55-.38c0-.19-.01-.82-.01-1.49c-2.01.37-2.53-.49-2.69-.94c-.09-.23-.48-.94-.82-1.13c-.28-.15-.68-.52-.01-.53c.63-.01 1.08.58 1.23.82c.72 1.21 1.87.87 2.33.66c.07-.52.28-.87.51-1.07c-1.78-.2-3.64-.89-3.64-3.95c0-.87.31-1.59.82-2.15c-.08-.2-.36-1.02.08-2.12c0 0 .67-.21 2.2.82c.64-.18 1.32-.27 2-.27c.68 0 1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82c.44 1.1.16 1.92.08 2.12c.51.56.82 1.27.82 2.15c0 3.07-1.87 3.75-3.65 3.95c.29.25.54.73.54 1.48c0 1.07-.01 1.93-.01 2.2c0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" fill="#000"></path></svg></a></span>
+</div>
+<hr>
+</header><main>
+<h1>&quot;più o meno&quot;</h1>
+<p>I want to implement step by step ane emulator for programma 101.</p>
+<p>In this first installement I will:</p>
+<ul>
+<li>set as a target a very simple program that adds two integer numbers</li>
+<li>decide on some basic types to represent internal state of the computer</li>
+<li>implement addition and maybe also substraction</li>
+</ul>
+<p>Expression &quot;più o meno&quot; in Italian means &quot;more or less&quot; but also &quot;plus or minus&quot;.
+I have more or less understood how Programma 101 works in its basic form but I still
+miss some parts.</p>
+<h2>A simple calculation</h2>
+<p>Here is a simple commented program that is what we want to target.
+I am writing as it would be written in P101 Manual (it is indeed the first example on page 4)
+and in a way that is valid nim syntax:</p>
+<pre><code class="nohighlight hljs nim"><span class="hljs-keyword">import</span> macros
+
+dumpTree:
+  <span class="hljs-number">25</span> ⬇️  <span class="hljs-comment"># set 25 in register M and move it in register A (this prints &quot;25 M⬇️&quot; to tape, the M is implicit)</span>
+  <span class="hljs-number">10</span> ➖  <span class="hljs-comment"># set 10 in register M and perform subtraction A - M and put result in A  (this prints &quot;10 M➖&quot; to tape, the M is implicit)</span>
+  <span class="hljs-type">A</span>  🔶  <span class="hljs-comment"># print content of register A (prints &quot;15 A🔶&quot; on tape)</span></code></pre>
+<ul>
+<li>I am using emojis since using an operator will get me an indentation error
+(nim expects + and - to be binary operators and does not like a new line after them)</li>
+<li>I want to be able to do the same operation with the sum</li>
+</ul>
+<h2>A simple architecture</h2>
+<p>In order to perform the above computation I will need to be able to:</p>
+<ul>
+<li>set a number in memory in register M</li>
+<li>move a number from register M to register A</li>
+<li>perform addition or subtraction between two registers and set the result in register A</li>
+<li>get a result from a register (A in this case)</li>
+</ul>
+<p>The memory of Programma 101 consists of:</p>
+<ul>
+<li>10 registers M, A, R, B, C, D, E, F, P1 and P2
+<ul>
+<li>M is the working memory and second operand in operations</li>
+<li>A is used for first operand and final result of an operation</li>
+<li>R is a &quot;remainder&quot; register also used for &quot;complete&quot; results (without truncation)</li>
+<li>B, C, D, E and F are generic data registers (we can access half registers and some of them can be used for program data)</li>
+<li>P1 and P2 are dedicated to program data</li>
+</ul>
+</li>
+<li>each register is made of 24 bytes</li>
+<li>there is a Decimal Limit Wheel that can go from 0 to 15 and tells how many decimals to keep in the result of operations
+(and how many decimal numbers to display)
+The memory thus consists of a total of 1920 bits.</li>
+</ul>
+<p>A curious fact is that it is implemented in hardware as a <a href="https://en.wikipedia.org/wiki/Delay-line_memory#Magnetostrictive_delay_lines">magnetostrictive delay-line</a>.</p>
+<p>I can encode this information in the following types:</p>
+<pre><code class="nohighlight hljs nim"><span class="hljs-keyword">type</span>
+  <span class="hljs-type">Byte</span>* = <span class="hljs-built_in">uint8</span>
+  <span class="hljs-type">Word</span>* = <span class="hljs-built_in">array</span>[<span class="hljs-number">24</span>, <span class="hljs-type">Byte</span>]
+  <span class="hljs-type">Register</span>* = <span class="hljs-keyword">enum</span>
+    <span class="hljs-type">M</span>, <span class="hljs-type">A</span>, <span class="hljs-type">R</span>, <span class="hljs-type">B</span>, <span class="hljs-type">C</span>, <span class="hljs-type">D</span>, <span class="hljs-type">E</span>, <span class="hljs-type">F</span>, <span class="hljs-type">P1</span>, <span class="hljs-type">P2</span>
+  <span class="hljs-type">Perottina</span>* = <span class="hljs-keyword">object</span>
+    memory*: <span class="hljs-built_in">array</span>[<span class="hljs-type">Register</span>, <span class="hljs-type">Word</span>]
+    decimalLimit*: <span class="hljs-built_in">range</span>[<span class="hljs-number">0</span> .. <span class="hljs-number">15</span>]</code></pre>
+<ul>
+<li>note that the memory array is indexed by an <code>enum</code></li>
+<li>I am using the internal name &quot;Perottina&quot; used at Olivetti (from the father of Programma 101 Pier Giorgio Perotto)
+for the internal type that represents the state of the machine</li>
+</ul>
+<p>Now to set an integer number in a register I need to know that numbers are stored as
+as <a href="https://en.wikipedia.org/wiki/Binary-coded_decimal">Binary-coded decimals</a>
+and the 24 bytes are used to encode information about 22 decimal digits plus the sign and the comma position.</p>
+<pre><code class="nohighlight hljs nim"><span class="hljs-keyword">var</span> p = <span class="hljs-type">Perottina</span>()
+
+<span class="hljs-keyword">type</span>
+  <span class="hljs-type">Digit</span>* = <span class="hljs-built_in">range</span>[<span class="hljs-number">0</span> .. <span class="hljs-number">9</span>]
+
+<span class="hljs-keyword">proc</span> push*(w: <span class="hljs-keyword">var</span> <span class="hljs-type">Word</span>, digit: <span class="hljs-type">Digit</span>) =
+  <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-number">2</span> .. <span class="hljs-number">22</span>:
+    w[i] = w[i+<span class="hljs-number">1</span>]
+  w[<span class="hljs-number">23</span>] = digit.<span class="hljs-built_in">uint8</span>
+
+<span class="hljs-keyword">proc</span> push*(p: <span class="hljs-keyword">var</span> <span class="hljs-type">Perottina</span>, d: <span class="hljs-type">Digit</span>) =
+  p.memory[<span class="hljs-type">M</span>].push(d)
+
+<span class="hljs-keyword">func</span> `$`*(w: <span class="hljs-type">Word</span>): <span class="hljs-built_in">string</span> =
+  <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-number">2</span> .. <span class="hljs-number">23</span>:
+    <span class="hljs-keyword">if</span> w[i] &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> <span class="hljs-literal">result</span>.len &gt; <span class="hljs-number">0</span>:
+      <span class="hljs-literal">result</span>.add $w[i]
+
+p.push <span class="hljs-number">2</span>
+p.push <span class="hljs-number">5</span>
+<span class="hljs-keyword">echo</span> $p.memory[<span class="hljs-type">M</span>]
+
+<span class="hljs-keyword">proc</span> pushDown*(p: <span class="hljs-keyword">var</span> <span class="hljs-type">Perottina</span>) =
+  p.memory[<span class="hljs-type">A</span>] = p.memory[<span class="hljs-type">M</span>]
+
+<span class="hljs-keyword">proc</span> reset*(p: <span class="hljs-keyword">var</span> <span class="hljs-type">Perottina</span>, r: <span class="hljs-type">Register</span>) =
+  <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-number">0</span> .. <span class="hljs-number">23</span>:
+    p.memory[r][i] = <span class="hljs-number">0</span>
+
+p.reset <span class="hljs-type">M</span>
+p.push <span class="hljs-number">1</span>
+p.push <span class="hljs-number">0</span>
+<span class="hljs-keyword">echo</span> $p.memory[<span class="hljs-type">M</span>]</code></pre><pre class="nb-output"><samp>25
+10</samp></pre>
+</main>
+<footer>
+<hr>
+<div class="nb-box">
+  <span><span class="nb-small">made with <a href="https://pietroppeter.github.io/nimib/">nimib 🐳</a></span></span>
+  <span></span>
+  <span><button class="nb-small" id="show" onclick="toggleSourceDisplay()">Show Source</button></span>
+</div>
+</footer>
+<section id="source">
+<pre><code class="nohighlight nim hljs"><span class="hljs-keyword">import</span> nimib
+
+nbInit
+
+nbText: <span class="hljs-string">&quot;&quot;&quot; # &quot;più o meno&quot;
+
+I want to implement step by step ane emulator for programma 101.
+
+In this first installement I will:
+- set as a target a very simple program that adds two integer numbers
+- decide on some basic types to represent internal state of the computer
+- implement addition and maybe also substraction
+
+Expression &quot;più o meno&quot; in Italian means &quot;more or less&quot; but also &quot;plus or minus&quot;.
+I have more or less understood how Programma 101 works in its basic form but I still
+miss some parts.
+
+## A simple calculation
+
+Here is a simple commented program that is what we want to target.
+I am writing as it would be written in P101 Manual (it is indeed the first example on page 4)
+and in a way that is valid nim syntax:
+&quot;&quot;&quot;</span>
+nbCode:
+  <span class="hljs-keyword">import</span> macros
+
+  dumpTree:
+    <span class="hljs-number">25</span> ⬇️  <span class="hljs-comment"># set 25 in register M and move it in register A (this prints &quot;25 M⬇️&quot; to tape, the M is implicit)</span>
+    <span class="hljs-number">10</span> ➖  <span class="hljs-comment"># set 10 in register M and perform subtraction A - M and put result in A  (this prints &quot;10 M➖&quot; to tape, the M is implicit)</span>
+    <span class="hljs-type">A</span>  🔶  <span class="hljs-comment"># print content of register A (prints &quot;15 A🔶&quot; on tape)</span>
+nbText: <span class="hljs-string">&quot;&quot;&quot;
+- I am using emojis since using an operator will get me an indentation error
+  (nim expects + and - to be binary operators and does not like a new line after them)
+- I want to be able to do the same operation with the sum
+
+## A simple architecture
+
+In order to perform the above computation I will need to be able to:
+- set a number in memory in register M
+- move a number from register M to register A
+- perform addition or subtraction between two registers and set the result in register A
+- get a result from a register (A in this case)
+
+The memory of Programma 101 consists of:
+- 10 registers M, A, R, B, C, D, E, F, P1 and P2
+  - M is the working memory and second operand in operations
+  - A is used for first operand and final result of an operation
+  - R is a &quot;remainder&quot; register also used for &quot;complete&quot; results (without truncation)
+  - B, C, D, E and F are generic data registers (we can access half registers and some of them can be used for program data)
+  - P1 and P2 are dedicated to program data
+- each register is made of 24 bytes
+- there is a Decimal Limit Wheel that can go from 0 to 15 and tells how many decimals to keep in the result of operations
+  (and how many decimal numbers to display)
+The memory thus consists of a total of 1920 bits.
+A curious fact is that it is implemented in hardware as a [magnetostrictive delay-line](https://en.wikipedia.org/wiki/Delay-line_memory#Magnetostrictive_delay_lines).
+
+I can encode this information in the following types:
+&quot;&quot;&quot;</span>
+nbCode:
+  <span class="hljs-keyword">type</span>
+    <span class="hljs-type">Byte</span>* = <span class="hljs-built_in">uint8</span>
+    <span class="hljs-type">Word</span>* = <span class="hljs-built_in">array</span>[<span class="hljs-number">24</span>, <span class="hljs-type">Byte</span>]
+    <span class="hljs-type">Register</span>* = <span class="hljs-keyword">enum</span>
+      <span class="hljs-type">M</span>, <span class="hljs-type">A</span>, <span class="hljs-type">R</span>, <span class="hljs-type">B</span>, <span class="hljs-type">C</span>, <span class="hljs-type">D</span>, <span class="hljs-type">E</span>, <span class="hljs-type">F</span>, <span class="hljs-type">P1</span>, <span class="hljs-type">P2</span>
+    <span class="hljs-type">Perottina</span>* = <span class="hljs-keyword">object</span>
+      memory*: <span class="hljs-built_in">array</span>[<span class="hljs-type">Register</span>, <span class="hljs-type">Word</span>]
+      decimalLimit*: <span class="hljs-built_in">range</span>[<span class="hljs-number">0</span> .. <span class="hljs-number">15</span>]
+nbText: <span class="hljs-string">&quot;&quot;&quot;
+- note that the memory array is indexed by an `enum`
+- I am using the internal name &quot;Perottina&quot; used at Olivetti (from the father of Programma 101 Pier Giorgio Perotto)
+  for the internal type that represents the state of the machine
+
+Now to set an integer number in a register I need to know that numbers are stored as
+as [Binary-coded decimals](https://en.wikipedia.org/wiki/Binary-coded_decimal)
+and the 24 bytes are used to encode information about 22 decimal digits plus the sign and the comma position.
+
+
+&quot;&quot;&quot;</span>
+nbCode:
+  <span class="hljs-keyword">var</span> p = <span class="hljs-type">Perottina</span>()
+
+  <span class="hljs-keyword">type</span>
+    <span class="hljs-type">Digit</span>* = <span class="hljs-built_in">range</span>[<span class="hljs-number">0</span> .. <span class="hljs-number">9</span>]
+
+  <span class="hljs-keyword">proc</span> push*(w: <span class="hljs-keyword">var</span> <span class="hljs-type">Word</span>, digit: <span class="hljs-type">Digit</span>) =
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-number">2</span> .. <span class="hljs-number">22</span>:
+      w[i] = w[i+<span class="hljs-number">1</span>]
+    w[<span class="hljs-number">23</span>] = digit.<span class="hljs-built_in">uint8</span>
+
+  <span class="hljs-keyword">proc</span> push*(p: <span class="hljs-keyword">var</span> <span class="hljs-type">Perottina</span>, d: <span class="hljs-type">Digit</span>) =
+    p.memory[<span class="hljs-type">M</span>].push(d)
+
+  <span class="hljs-keyword">func</span> `$`*(w: <span class="hljs-type">Word</span>): <span class="hljs-built_in">string</span> =
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-number">2</span> .. <span class="hljs-number">23</span>:
+      <span class="hljs-keyword">if</span> w[i] &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> <span class="hljs-literal">result</span>.len &gt; <span class="hljs-number">0</span>:
+        <span class="hljs-literal">result</span>.add $w[i]
+
+  p.push <span class="hljs-number">2</span>
+  p.push <span class="hljs-number">5</span>
+  <span class="hljs-keyword">echo</span> $p.memory[<span class="hljs-type">M</span>]
+
+  <span class="hljs-keyword">proc</span> pushDown*(p: <span class="hljs-keyword">var</span> <span class="hljs-type">Perottina</span>) =
+    p.memory[<span class="hljs-type">A</span>] = p.memory[<span class="hljs-type">M</span>]
+
+  <span class="hljs-keyword">proc</span> reset*(p: <span class="hljs-keyword">var</span> <span class="hljs-type">Perottina</span>, r: <span class="hljs-type">Register</span>) =
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-number">0</span> .. <span class="hljs-number">23</span>:
+      p.memory[r][i] = <span class="hljs-number">0</span>
+
+  p.reset <span class="hljs-type">M</span>
+  p.push <span class="hljs-number">1</span>
+  p.push <span class="hljs-number">0</span>
+  <span class="hljs-keyword">echo</span> $p.memory[<span class="hljs-type">M</span>]
+
+nbSave</code></pre>
+</section><script>
+function toggleSourceDisplay() {
+  var btn = document.getElementById("show")
+  var source = document.getElementById("source");
+  if (btn.innerHTML=="Show Source") {
+    btn.innerHTML = "Hide Source";
+    source.style.display = "block";
+  } else {
+    btn.innerHTML = "Show Source";
+    source.style.display = "none";
+  }
+}
+</script></body>
+</html>
