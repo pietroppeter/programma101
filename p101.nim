@@ -27,6 +27,9 @@ func toString*(w: Reg): string =
     else:
       result.add $(char(w[i]))
 
+func get*(p: Perottina, r: RegLabel): string =
+  p.memory[r].toString
+
 proc pushDown*(p: var Perottina) =
   p.memory[A] = p.memory[M]
 
@@ -116,6 +119,7 @@ proc difference*(p: var Perottina) =
   p.memory[R] = comp9(p.memory[R], 1)
   denormalize p.memory[A]
   sum(p.memory[R], p.memory[A])
+
   normalize p.memory[R]
   p.memory[A] = p.memory[R]
 
@@ -183,3 +187,15 @@ when isMainModule:
   p.difference
   printMAR
   checkMAR -10, -15, -15
+
+  echo "-10 + 3 = -7"
+  p.reset M
+  p.pushMinus
+  p.push 1
+  p.push 0
+  p.pushDown
+  p.reset M
+  p.push 3
+  p.sum
+  printMAR
+  #checkMAR 3, -7, -7
